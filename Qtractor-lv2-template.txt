@@ -1,0 +1,14 @@
+     <plugin type="LV2">
+      <filename></filename>  <!-- lv2info urn -->
+      <index>0</index>
+      <label></label>  <!-- lv2info doap:name with "_" instead of " " -->
+      <preset />
+      <direct-access-param>-1</direct-access-param>
+      <activated>0</activated>
+      <configs />
+      <params>  <!-- <param index="4" name="Bypass">0</param> -->
+      </params>
+      <controllers />
+      <editor-pos>20,20</editor-pos>
+      <form-pos>0,0</form-pos>
+     </plugin>

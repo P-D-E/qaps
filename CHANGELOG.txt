@@ -1,2 +1,7 @@
+0.0.2 - 2019-10-12
+- Added creation of LV2 plugins on the destination tracks (it requires lv2info)
+- Added handling of active/inactive state of copied and created plugins
+- Switched plugin matching from name to URN (i18n names are concatenated differently in Ardour and Qtractor, see LSP plugins for example)
+
 0.0.1 - 2019-10-05
 Initial version

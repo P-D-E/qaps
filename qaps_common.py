@@ -25,6 +25,7 @@ import os
 import shutil
 import datetime
 import xml.etree.ElementTree as Et
+from lv2info import create_lv2_qtractor_plugin, create_lv2_ardour_plugin
 
 
 class Counter(object):
@@ -193,11 +194,11 @@ class MyFrame(object):
             q_tag = q_item["tag"]
             a_plug = a_item["text"]
             a_tag = a_item["tag"]
-        except TypeError:
+        except (TypeError, KeyError):
             pass
         print(q_plug, q_tag)
         print(a_plug, a_tag)
-        if (a_plug.replace(" ", "_") != q_plug) or a_tag != "P" or q_tag != "P" or not a_plug or not q_plug:
+        if (a_tag != q_tag) or not (a_tag.startswith("P-")) or not (q_tag.startswith("P-")) or not a_plug or not q_plug:
             self.show_message("Qaps", "Select matching plugins in both projects")
             return None, None, None, None, None, None
         q_track = self.get_item(q_gui_tree, parent=True)
@@ -244,9 +245,9 @@ class MyFrame(object):
                 else:  # it's a bus
                     tag = "B"
                 track_item = self.append_item(gui_tree, gui_root, track.get("name"), tag)
-                plugins = track.findall("Processor")
+                plugins = track.findall("Processor[@unique-id]")
                 for plugin in plugins:
-                    self.append_item(gui_tree, track_item, plugin.get("name"), "P")
+                    self.append_item(gui_tree, track_item, plugin.get("name"), "P-" + plugin.get("unique-id"))
             self.finalize_tree(gui_tree)
         except AttributeError:
             self.show_message("Attention", "This doesn't appear to be an Ardour 5.X project.")
@@ -264,7 +265,8 @@ class MyFrame(object):
             try:
                 plugins = track.findall(".//plugin")
                 for plugin in plugins:
-                    self.append_item(gui_tree, track_item, plugin.find("label").text, "P")
+                    self.append_item(gui_tree, track_item, plugin.find("label").text,
+                                     "P-" + plugin.find("filename").text)
             except AttributeError:
                 continue
 
@@ -290,6 +292,7 @@ class MyFrame(object):
         :param Element dest_plugin: the destination Ardour plugin
         """
         print("\nBefore:", Et.tostring(dest_plugin))
+        dest_plugin.set("active", src_plugin.find("activated").text)
         for dest_param in dest_plugin.findall(".//Controllable"):
             src_param = src_plugin.find(".//param[@name='" + dest_param.get("name") + "']")
             try:
@@ -308,6 +311,7 @@ class MyFrame(object):
         :param Element dest_plugin: the destination Qtractor plugin
         """
         print("\nBefore:", Et.tostring(dest_plugin))
+        dest_plugin.find("activated").text = src_plugin.get("active")
         for dest_param in dest_plugin.findall(".//param"):
             src_param = src_plugin.find(".//Controllable[@name='" + dest_param.get("name") + "']")
             try:
@@ -322,17 +326,29 @@ class MyFrame(object):
         Copies all the plugin settings from a Qtractor track to an Ardour track.
         :param Element src_track: the source Qtractor track
         :param Element dest_track: the destination Ardour track
+        :return bool: True if at least one plugin was created, False otherwise
         """
+        new_plugins = False
         count = Counter()
-        for dest_plugin in dest_track.findall(".//Processor"):
-            name = dest_plugin.get("name")
+        next_index = None
+        for src_plugin in src_track.findall(".//plugin"):
+            name = src_plugin.find("filename").text
             index = count.inc(name)
             try:
-                src_plugin = src_track.findall(".//plugin[label='" + name.replace(" ", "_") + "']")[index]
-                if src_plugin:
-                    MyFrame.q_to_a_plugin_copy(src_plugin, dest_plugin)
+                dest_plugin = dest_track.findall(".//Processor[@unique-id='" + name + "']")[index]
+                next_index = dest_track.findall("./*").index(dest_plugin) + 1
             except IndexError:
-                pass
+                plugin = create_lv2_ardour_plugin(name)
+                new_plugins = True
+                if next_index is None:
+                    dest_track.find(".//Processor/..").append(plugin)
+                    next_index = dest_track.findall("./*").index(plugin) + 1
+                else:
+                    dest_track.insert(next_index, plugin)
+                    next_index += 1
+                dest_plugin = dest_track.findall(".//Processor[@unique-id='" + name + "']")[index]
+            MyFrame.q_to_a_plugin_copy(src_plugin, dest_plugin)
+        return new_plugins
 
     @staticmethod
     def a_to_q_track_copy(src_track, dest_track):
@@ -340,17 +356,29 @@ class MyFrame(object):
         Copies all the plugin settings from an Ardour track to a Qtractor track.
         :param Element src_track: the source Ardour track
         :param Element dest_track: the destination Qtractor track
+        :return bool: True if at least one plugin was created, False otherwise
         """
+        new_plugins = False
         count = Counter()
-        for dest_plugin in dest_track.findall(".//plugin"):
-            name = dest_plugin.find("label").text
+        next_index = None
+        for src_plugin in src_track.findall(".//Processor[@unique-id]"):
+            name = src_plugin.get("unique-id")
             index = count.inc(name)
             try:
-                src_plugin = src_track.findall(".//Processor[@name='" + name.replace("_", " ") + "']")[index]
-                if src_plugin:
-                    MyFrame.a_to_q_plugin_copy(src_plugin, dest_plugin)
+                dest_plugin = dest_track.findall(".//plugin[filename='" + name + "']")[index]
+                next_index = dest_track.findall(".//plugin").index(dest_plugin) + 1
             except IndexError:
-                pass
+                plugin = create_lv2_qtractor_plugin(name)
+                new_plugins = True
+                if next_index is None:
+                    dest_track.find(".//plugin/..").append(plugin)
+                    next_index = len(dest_track.findall(".//plugin"))
+                else:
+                    dest_track.find(".//plugin/..").insert(next_index, plugin)
+                    next_index += 1
+                dest_plugin = dest_track.findall(".//plugin[filename='" + name + "']")[index]
+            MyFrame.a_to_q_plugin_copy(src_plugin, dest_plugin)
+        return new_plugins
 
     def get_xml_plugins(self):
         """
@@ -453,7 +481,12 @@ class MyFrame(object):
         """
         q_track, a_track = self.get_xml_tracks()
         if a_track and q_track:
-            self.q_to_a_track_copy(q_track, a_track)
+            self.set_status("Working...")
+            new_plugins = self.q_to_a_track_copy(q_track, a_track)
+            if new_plugins:
+                self.init_tree(self.tree_ctrl_ardour)
+                self.a_fill(self.tree_ctrl_ardour, self.a_tree)
+                self.finalize_tree(self.tree_ctrl_ardour)
             self.set_status("Track plugin settings copied from Qtractor to Ardour")
         else:
             self.show_message("Qaps", "Select tracks in both projects")
@@ -464,7 +497,12 @@ class MyFrame(object):
         """
         q_track, a_track = self.get_xml_tracks()
         if a_track and q_track:
-            self.a_to_q_track_copy(a_track, q_track)
+            self.set_status("Working...")
+            new_plugins = self.a_to_q_track_copy(a_track, q_track)
+            if new_plugins:
+                self.init_tree(self.tree_ctrl_qtractor)
+                self.q_fill(self.tree_ctrl_qtractor, self.q_tree)
+                self.finalize_tree(self.tree_ctrl_qtractor)
             self.set_status("Track plugin settings copied from Ardour to Qtractor")
         else:
             self.show_message("Qaps", "Select tracks in both projects")
@@ -473,6 +511,7 @@ class MyFrame(object):
         """
         Copies all Qtractor plugin settings to Ardour's project. Connect this to the q_to_a_all button press.
         """
+        self.set_status("Working...")
         for a_track in self.a_tree.findall(".//Route"):
             a_flags = a_track.find("PresentationInfo").get("flags")
             if ("AudioTrack" in a_flags) or ("MidiTrack" in a_flags):
@@ -488,6 +527,7 @@ class MyFrame(object):
         """
         Copies all Ardour plugin settings to Qtractor's project. Connect this to the a_to_q_all button press.
         """
+        self.set_status("Working...")
         for q_track in self.q_tree.findall(".//track") + self.q_tree.findall(".//audio-bus"):
             a_track = self.a_tree.find(".//Route[@name='" + q_track.get("name") + "']")
             if not a_track:

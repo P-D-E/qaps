@@ -10,15 +10,15 @@ Open the Qtractor and Ardour projects in the respective panes, create backups fo
 
 - select matching plugins in any two tracks and copy the settings from one to another with the buttons under the "Plugin" label
 
-- select any two tracks and copy the plugin settings from one to another with the buttons under the "Track" label, as long as they have at least one matching plugin
+- select any two tracks and copy the plugin settings from one to another with the buttons under the "Track" label
 
 - copy the plugin settings from one project to another with the buttons under the "All" label
 
 Once you're done, save the modified project; it will be overwritten without asking, and that's the main good reason for creating backups first.
 
-Plugins are matched by name (ignoring the "_" and " " used by Qtractor and Ardour respectively), you won't be able to copy settings from, say, a Calf Equalizer 8 Band to a 12 band one.
+Plugins are matched by URN (e.g. http://calf.sourceforge.net/plugins/Equalizer8Band), you won't be able to copy settings from, say, a Calf Equalizer 8 Band to a 12 band one.
 
-When copying entire tracks, should any of them have less or different plugins than the other, the unmatched ones will just be skipped without errors; Qaps also deals with multiple copies of the same plugin (e.g. EQ both before and after compression) in the same order.
+When copying entire tracks, the missing plugins in the destination track will be created (see Requirements below); Qaps also deals with multiple copies of the same plugin (e.g. EQ both before and after compression) in the same order.
 
 When copying entire projects, tracks and buses are matched by name, regardless of their position.
 
@@ -26,6 +26,10 @@ The other good reason for creating backups is the floating point precision diffe
 
 Speaking of backups, no file name is asked; the backup is automatically created in the same location as qaps-<timestamp>-<original file name>, e.g. qaps-2016-07-13T16-32-04-HighFlight.qtr
 Feel free to modify it to your needs, if you prefer being able to choose a different file name and/or folder.
+
+
+## Requirements
+The lv2info program is needed for plugin creation.
 
 
 ## Known issues

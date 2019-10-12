@@ -1,0 +1,19 @@
+      <Processor id="8436" name="Calf Equalizer 8 Band" active="0" user-latency="0" type="lv2" unique-id="http://calf.sourceforge.net/plugins/Equalizer8Band" count="1" custom="0">
+        <Automation>
+        </Automation>
+        <ConfiguredInput>
+        </ConfiguredInput>
+        <CustomSinks>
+        </CustomSinks>
+        <ConfiguredOutput>
+        </ConfiguredOutput>
+        <PresetOutput/>
+        <InputMap-0>
+        </InputMap-0>
+        <OutputMap-0>
+        </OutputMap-0>
+        <ThruMap/>
+        <lv2 last-preset-uri="" last-preset-label="" parameter-changed-since-last-preset="1">  <!-- <Port symbol="hs_q" value="0.7070000171661377"/>  -->
+        </lv2>
+	<!--  list of <Controllable name="HS Q" id="8474" flags="" value="0.7070000171661377" parameter="30" symbol="hs_q"/>  -->
+      </Processor>
